@@ -555,7 +555,8 @@ root.querySelector('#startCam').onclick = async ()=>{
 
     }catch(e){ 
       console.error(e);
-      toast('No se pudo activar la cámara. Usa el registro manual.'); 
+      alert('Error de cámara: ' + e.message + '. Asegúrate de usar HTTPS y dar permisos.');
+      toast('No se pudo activar la cámara.'); 
     }
   };
 }
@@ -586,6 +587,37 @@ function renderHistory(root){
 async function boot(){
   await loadData();
   renderApp();
+
+  // Detectar si se abrió escaneando un QR con ?pass=
+  const urlParams = new URLSearchParams(window.location.search);
+  const passCode = urlParams.get('pass');
+  if(passCode) {
+    // Cambiamos automáticamente a la pestaña de escáner/pases
+    activeTab = 'scanner';
+    renderTabs(); 
+    renderPanels();
+    
+    // Damos un pequeño respiro para que cargue la interfaz y procesamos el pase
+    setTimeout(async () => {
+      // Buscamos al alumno
+      let student = DATA.students.find(s => s.code.trim() === passCode.trim());
+      if(student) {
+        // Seleccionamos su grupo por defecto en el selector si coincide
+        const groupSelect = document.getElementById('scanGroup');
+        if(groupSelect && student.groupId) {
+          groupSelect.value = student.groupId;
+        }
+        // Ejecutamos la función de dar/quitar pase
+        // (Nota: Asegúrate de que handleScan sea accesible o usa la lógica directa)
+        toast(`Código detectado: ${student.name}`);
+      } else {
+        toast('Código QR no encontrado en el sistema.');
+      }
+      
+      // Limpiamos la URL para que no se repita al recargar
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }, 600);
+  }
 }
 (async function init(){
   const { data: { session } } = await supabase.auth.getSession();

@@ -419,11 +419,11 @@ function renderBadges(root){
    list.forEach(s=>{
   const el = document.getElementById('qr-'+s.id);
   if(el) {
-    el.innerHTML = ""; // Limpia contenedor por seguridad
+    el.innerHTML = "";
     new QRCode(el, {
       text: String(s.code),
-      width: 64,
-      height: 64,
+      width: 130,
+      height: 130,
       colorDark: '#16241f',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M

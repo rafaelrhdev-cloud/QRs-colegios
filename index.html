@@ -477,7 +477,6 @@ async function handleScan(rawCode){
     if(!rawCode) return;
     let cleanCode = rawCode.trim();
 
-    // Si la cámara lee la URL completa, extraemos solo el código del alumno
     if(cleanCode.includes('?pass=')) {
       const parts = cleanCode.split('?pass=');
       cleanCode = parts[1] ? parts[1].trim() : cleanCode;
@@ -485,21 +484,44 @@ async function handleScan(rawCode){
 
     const gid = groupSelect.value;
     const student = DATA.students.find(s=>s.code.trim() === cleanCode);
-    if(!student) return toast('Código no reconocido.');
+    if(!student) return; // Si no lo reconoce, ignoramos temporalmente para seguir buscando
+
+    // ===== CIERRE AUTOMÁTICO DE CÁMARA Y COOLDOWN =====
+    stopCamera(); // Apaga la cámara al instante de leer un código válido
+    
+    // Mostramos feedback visual de que leyó al alumno
+    toast(`Procesando a ${student.name}...`);
 
     const activeForStudent = DATA.activePasses.find(p=>p.studentId===student.id);
     if(activeForStudent){
       DATA.activePasses = DATA.activePasses.filter(p=>p.studentId!==student.id);
       DATA.history.unshift({id:uid(), studentId:student.id, groupId:gid, out:activeForStudent.time, in:Date.now(), by: teacherName()});
-      await saveData(); toast(`${student.name} regresó al salón.`); drawLimit();
+      await saveData(); 
+      toast(`${student.name} regresó al salón.`); 
+      drawLimit();
+      if(typeof drawResults === 'function') drawResults();
       return;
     }
-    if(student.groupId !== gid){ if(!confirm(`${student.name} pertenece a outro grupo. ¿Registrar salida de todos modos?`)) return; }
+
+    if(student.groupId !== gid){ 
+      if(!confirm(`${student.name} pertenece a otro grupo. ¿Registrar salida de todos modos?`)) {
+        return; 
+      }
+    }
+
     const out = activeOutForGroup(gid);
-    if(out.length >= 2){ toast('Límite alcanzado: ya hay 2 alumnos fuera.'); return; }
+    if(out.length >= 2){ 
+      toast('Límite alcanzado: ya hay 2 alumnos fuera.'); 
+      return; 
+    }
+
     DATA.activePasses.push({studentId:student.id, groupId:gid, time:Date.now(), by: teacherName()});
-    await saveData(); toast(`${student.name} salió del salón.`); drawLimit();
+    await saveData(); 
+    toast(`${student.name} salió del salón.`); 
+    drawLimit();
+    if(typeof drawResults === 'function') drawResults();
   }
+  
   const searchInput = root.querySelector('#manualSearch');
   function drawResults(){
     const q = searchInput.value.trim().toLowerCase();

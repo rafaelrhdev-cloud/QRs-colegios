@@ -521,7 +521,7 @@ async function handleScan(rawCode){
     drawLimit();
     if(typeof drawResults === 'function') drawResults();
   }
-  
+
   const searchInput = root.querySelector('#manualSearch');
   function drawResults(){
     const q = searchInput.value.trim().toLowerCase();
@@ -587,6 +587,12 @@ function stopCamera(){
   if(scannerLoopId) cancelAnimationFrame(scannerLoopId);
   if(scannerStream) scannerStream.getTracks().forEach(t=>t.stop());
   scannerStream = null; scannerLoopId = null;
+
+  // Restauramos la interfaz del escáner para que vuelva a mostrar el botón "Activar cámara"
+  const video = document.getElementById('video');
+  const camIdle = document.getElementById('camIdle');
+  if(video) video.style.display = 'none';
+  if(camIdle) camIdle.style.display = 'block';
 }
 
 /* ---------------- HISTORY ---------------- */

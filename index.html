@@ -413,13 +413,23 @@ function renderBadges(root){
           <div class="info"><h3>${s.name}</h3><p>${groupLabel(s.groupId)}</p><p>${s.folio ? 'Matrícula '+s.folio : yearLabel((DATA.groups.find(g=>g.id===s.groupId)||{}).yearId)}</p></div>
         </div>
         <div class="badge-perforation"></div>
-        <div class="badge-stub"><div class="qr-wrap" id="qr-${s.id}"></div><div class="code">CÓDIGO<br>${s.code.slice(0,8).toUpperCase()}</div></div>
+        <div class="badge-stub"><div class="qr-wrap" id="qr-${s.id}"></div><div class="code">CÓDIGO<br>${s.code}</div></div>
       </div>
     `).join('');
-    list.forEach(s=>{
-      const el = document.getElementById('qr-'+s.id);
-      if(el) new QRCode(el, {text: s.code, width:64, height:64, colorDark:'#16241f', colorLight:'#ffffff'});
+   list.forEach(s=>{
+  const el = document.getElementById('qr-'+s.id);
+  if(el) {
+    el.innerHTML = ""; // Limpia contenedor por seguridad
+    new QRCode(el, {
+      text: String(s.code),
+      width: 64,
+      height: 64,
+      colorDark: '#16241f',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
     });
+  }
+});
   }
   draw();
   root.querySelector('#badgeGroup').onchange = draw;
@@ -460,9 +470,10 @@ function renderScanner(root){
   }
   drawLimit();
   groupSelect.onchange = drawLimit;
-  async function handleScan(code){
+async function handleScan(rawCode){
+    const code = rawCode ? rawCode.trim() : '';
     const gid = groupSelect.value;
-    const student = DATA.students.find(s=>s.code===code);
+    const student = DATA.students.find(s=>s.code.trim() === code);
     if(!student) return toast('Código no reconocido.');
     const activeForStudent = DATA.activePasses.find(p=>p.studentId===student.id);
     if(activeForStudent){
@@ -481,7 +492,7 @@ function renderScanner(root){
   function drawResults(){
     const q = searchInput.value.trim().toLowerCase();
     const results = q ? DATA.students.filter(s=>s.name.toLowerCase().includes(q)) : studentsInGroup(groupSelect.value);
-    root.querySelector('#manualResults').innerHTML = results.slice(0,8).map(s=>{
+root.querySelector('#manualResults').innerHTML = results.slice(0,8).map(s=>{
       const isOut = DATA.activePasses.some(p=>p.studentId===s.id);
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);"><span style="font-size:13px;">${s.name} <span class="hint">(${groupLabel(s.groupId)})</span></span><button class="btn small ${isOut?'secondary':''}" data-code="${s.code}">${isOut? 'Registrar regreso':'Dar pase'}</button></div>`;
     }).join('') || `<p class="hint">Sin resultados.</p>`;

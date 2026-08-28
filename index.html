@@ -500,31 +500,52 @@ root.querySelector('#manualResults').innerHTML = results.slice(0,8).map(s=>{
   }
   drawResults();
   searchInput.oninput = drawResults;
-  root.querySelector('#startCam').onclick = async ()=>{
+root.querySelector('#startCam').onclick = async ()=>{
     const video = root.querySelector('#video');
     try{
-      scannerStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      video.srcObject = scannerStream; video.style.display = 'block';
+      scannerStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+      video.srcObject = scannerStream; 
+      video.style.display = 'block';
       root.querySelector('#camIdle').style.display = 'none';
-      video.play();
-      const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+      
+      // Forzar reproducción en dispositivos móviles (iOS / Android)
+      video.setAttribute('playsinline', 'true');
+      await video.play();
+
+      const canvas = document.createElement('canvas'); 
+      const ctx = canvas.getContext('2d');
       let lastCode = null, lastTime = 0;
-      function loop(){
-        if(video.readyState === video.HAVE_ENOUGH_DATA){
-          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+
+      function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth; 
+          canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const img = ctx.getImageData(0,0,canvas.width,canvas.height);
-          const result = jsQR(img.data, img.width, img.height);
-          if(result && result.data){
-            console.log("QR Detectado:", result.data); // <-- Esto te dirá si ya lo leyó
+          
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: "dontInvert",
+          });
+
+          if (code) {
             const now = Date.now();
-            if(result.data !== lastCode || now-lastTime > 3000){ lastCode = result.data; lastTime = now; handleScan(result.data); }
+            if (code.data !== lastCode || now - lastTime > 3000) {
+              lastCode = code.data; 
+              lastTime = now; 
+              handleScan(code.data);
+            }
           }
         }
-        scannerLoopId = requestAnimationFrame(loop);
+        scannerLoopId = requestAnimationFrame(tick);
       }
-      loop();
-    }catch(e){ toast('No se pudo activar la cámara. Usa el registro manual.'); }
+      
+      // Iniciar el escaneo de forma explícita
+      tick();
+
+    }catch(e){ 
+      console.error(e);
+      toast('No se pudo activar la cámara. Usa el registro manual.'); 
+    }
   };
 }
 function stopCamera(){

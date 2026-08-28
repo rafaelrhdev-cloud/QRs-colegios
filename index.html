@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pase de Salón</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 :root{
   --ink:#16241f; --paper:#f7f3e8; --paper-2:#efe7d3;
@@ -593,30 +594,24 @@ async function boot(){
   const urlParams = new URLSearchParams(window.location.search);
   const passCode = urlParams.get('pass');
   if(passCode) {
-    // Nos aseguramos de estar en la pestaña del escáner
     activeTab = 'scanner';
     renderTabs(); 
     renderPanels();
     
-    // Damos un breve respiro para que el DOM renderice los selectores y contadores
     setTimeout(async () => {
       let student = DATA.students.find(s => s.code.trim() === passCode.trim());
       if(student) {
-        // Asignamos el grupo del alumno al selector principal para que el conteo coincida
-        const groupSelect = document.getElementById('scanGroup');
-        if(groupSelect && student.groupId) {
-          groupSelect.value = student.groupId;
-          // Disparamos el evento change para que dibuje el límite actual de ese grupo
-          groupSelect.onchange(); 
-        }
+        // Determinamos el grupo del alumno
+        const gid = student.groupId;
+        
+        // Verificamos si ya estaba fuera
+        const activeIndex = DATA.activePasses.findIndex(p => p.studentId === student.id);
 
-        // EJECUTAMOS EL PROCESO REAL DEL PASE (Salida o Regreso)
-        const gid = groupSelect ? groupSelect.value : student.groupId;
-        const activeForStudent = DATA.activePasses.find(p => p.studentId === student.id);
-
-        if(activeForStudent) {
-          // Si ya estaba fuera, lo registramos como regreso
-          DATA.activePasses = DATA.activePasses.filter(p => p.studentId !== student.id);
+        if(activeIndex !== -1) {
+          // Estaba fuera -> REGRESA AL SALÓN
+          const activeForStudent = DATA.activePasses[activeIndex];
+          DATA.activePasses.splice(activeIndex, 1);
+          
           DATA.history.unshift({
             id: uid(), 
             studentId: student.id, 
@@ -625,39 +620,44 @@ async function boot(){
             in: Date.now(), 
             by: teacherName()
           });
+          
           await saveData();
           toast(`${student.name} regresó al salón.`);
         } else {
-          // Validamos límite de 2 alumnos fuera
+          // Estaba dentro -> SALE DEL SALÓN
           const outList = DATA.activePasses.filter(p => p.groupId === gid);
           if(outList.length >= 2) {
             toast('Límite alcanzado: ya hay 2 alumnos fuera de este grupo.');
           } else {
-            // Si estaba dentro, le damos el pase de salida
             DATA.activePasses.push({
               studentId: student.id, 
               groupId: gid, 
               time: Date.now(), 
               by: teacherName()
             });
+            
             await saveData();
             toast(`${student.name} salió del salón.`);
           }
         }
 
-        // Actualizamos la interfaz visual del escáner y los contadores al instante
-        if(typeof drawLimit === 'function') drawLimit();
-        if(typeof drawResults === 'function') drawResults();
-        // Forzamos la recarga de los paneles para reflejar el estado actual
+        // Forzamos la recarga total del panel del escáner para que pinte los chips de "fuera"
         renderPanels();
+        
+        // Sincronizamos el selector si existe en el DOM actual
+        const groupSelect = document.getElementById('scanGroup');
+        if(groupSelect && gid) {
+          groupSelect.value = gid;
+          if(typeof groupSelect.onchange === 'function') groupSelect.onchange();
+        }
 
       } else {
         toast('Código QR no encontrado en el sistema.');
       }
       
-      // Limpiamos la URL para evitar que se vuelva a disparar al recargar
+      // Limpiamos la URL para evitar que se repita la acción al recargar
       window.history.replaceState({}, document.title, window.location.pathname);
-    }, 400);
+    }, 500);
   }
 }
 (async function init(){

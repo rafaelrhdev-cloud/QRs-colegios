@@ -589,34 +589,75 @@ async function boot(){
   renderApp();
 
   // Detectar si se abrió escaneando un QR con ?pass=
+// Detectar si se abrió escaneando un QR con ?pass=
   const urlParams = new URLSearchParams(window.location.search);
   const passCode = urlParams.get('pass');
   if(passCode) {
-    // Cambiamos automáticamente a la pestaña de escáner/pases
+    // Nos aseguramos de estar en la pestaña del escáner
     activeTab = 'scanner';
     renderTabs(); 
     renderPanels();
     
-    // Damos un pequeño respiro para que cargue la interfaz y procesamos el pase
+    // Damos un breve respiro para que el DOM renderice los selectores y contadores
     setTimeout(async () => {
-      // Buscamos al alumno
       let student = DATA.students.find(s => s.code.trim() === passCode.trim());
       if(student) {
-        // Seleccionamos su grupo por defecto en el selector si coincide
+        // Asignamos el grupo del alumno al selector principal para que el conteo coincida
         const groupSelect = document.getElementById('scanGroup');
         if(groupSelect && student.groupId) {
           groupSelect.value = student.groupId;
+          // Disparamos el evento change para que dibuje el límite actual de ese grupo
+          groupSelect.onchange(); 
         }
-        // Ejecutamos la función de dar/quitar pase
-        // (Nota: Asegúrate de que handleScan sea accesible o usa la lógica directa)
-        toast(`Código detectado: ${student.name}`);
+
+        // EJECUTAMOS EL PROCESO REAL DEL PASE (Salida o Regreso)
+        const gid = groupSelect ? groupSelect.value : student.groupId;
+        const activeForStudent = DATA.activePasses.find(p => p.studentId === student.id);
+
+        if(activeForStudent) {
+          // Si ya estaba fuera, lo registramos como regreso
+          DATA.activePasses = DATA.activePasses.filter(p => p.studentId !== student.id);
+          DATA.history.unshift({
+            id: uid(), 
+            studentId: student.id, 
+            groupId: gid, 
+            out: activeForStudent.time, 
+            in: Date.now(), 
+            by: teacherName()
+          });
+          await saveData();
+          toast(`${student.name} regresó al salón.`);
+        } else {
+          // Validamos límite de 2 alumnos fuera
+          const outList = DATA.activePasses.filter(p => p.groupId === gid);
+          if(outList.length >= 2) {
+            toast('Límite alcanzado: ya hay 2 alumnos fuera de este grupo.');
+          } else {
+            // Si estaba dentro, le damos el pase de salida
+            DATA.activePasses.push({
+              studentId: student.id, 
+              groupId: gid, 
+              time: Date.now(), 
+              by: teacherName()
+            });
+            await saveData();
+            toast(`${student.name} salió del salón.`);
+          }
+        }
+
+        // Actualizamos la interfaz visual del escáner y los contadores al instante
+        if(typeof drawLimit === 'function') drawLimit();
+        if(typeof drawResults === 'function') drawResults();
+        // Forzamos la recarga de los paneles para reflejar el estado actual
+        renderPanels();
+
       } else {
         toast('Código QR no encontrado en el sistema.');
       }
       
-      // Limpiamos la URL para que no se repita al recargar
+      // Limpiamos la URL para evitar que se vuelva a disparar al recargar
       window.history.replaceState({}, document.title, window.location.pathname);
-    }, 600);
+    }, 400);
   }
 }
 (async function init(){

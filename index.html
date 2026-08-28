@@ -513,9 +513,10 @@ root.querySelector('#manualResults').innerHTML = results.slice(0,8).map(s=>{
         if(video.readyState === video.HAVE_ENOUGH_DATA){
           canvas.width = video.videoWidth; canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const img = ctx.getImageData(0,0,canvas.width,canvas.height);
           const result = jsQR(img.data, img.width, img.height);
           if(result && result.data){
+            console.log("QR Detectado:", result.data); // <-- Esto te dirá si ya lo leyó
             const now = Date.now();
             if(result.data !== lastCode || now-lastTime > 3000){ lastCode = result.data; lastTime = now; handleScan(result.data); }
           }

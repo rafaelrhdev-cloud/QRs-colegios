@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pase de Salón</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<style>
+:root{
+  --ink:#16241f; --paper:#f7f3e8; --paper-2:#efe7d3;
+  --green:#1f4b3f; --green-light:#2f6b57; --mustard:#d8a93e; --coral:#c1502e;
+  --line: rgba(22,36,31,0.16); --radius: 14px;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:ui-sans-serif,"Segoe UI",system-ui,sans-serif;min-height:100vh;}
+.app{max-width:1100px;margin:0 auto;padding:20px 16px 60px;}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:14px 0 18px;border-bottom:2px solid var(--ink);margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:var(--paper);font-weight:800;font-size:14px;}
+.brand-text{line-height:1.1;}
+.brand-text .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--green-light);font-weight:700;}
+.brand-text h1{font-size:19px;margin:0;font-weight:800;}
+.who{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;}
+nav.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;}
+nav.tabs button{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;}
+nav.tabs button.active{background:var(--ink);color:var(--paper);}
+nav.tabs button:hover:not(.active){background:var(--paper-2);}
+.panel{display:none;} .panel.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h2.section-title{font-size:15px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:var(--green);margin:0 0 14px;}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+.grid{display:grid;gap:14px;}
+.grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+.grid.cols-3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--green);}
+input, select{width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:14px;background:var(--paper);color:var(--ink);}
+input:focus, select:focus{outline:2px solid var(--green-light);outline-offset:1px;}
+.field{margin-bottom:12px;}
+.btn{border:none;background:var(--green);color:#fff;padding:10px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;}
+.btn:hover{background:var(--green-light);}
+.btn.secondary{background:transparent;border:1.5px solid var(--ink);color:var(--ink);}
+.btn.secondary:hover{background:var(--paper-2);}
+.btn.small{padding:6px 10px;font-size:12px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 6px;border-bottom:2px solid var(--ink);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--green);}
+td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle;}
+.row-actions{display:flex;gap:6px;}
+.empty{text-align:center;padding:40px 20px;color:var(--green-light);border:2px dashed var(--line);border-radius:var(--radius);font-size:13px;}
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--paper-2);font-size:11px;font-weight:700;color:var(--green);}
+.avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:var(--paper-2);border:1.5px solid var(--line);}
+.avatar.lg{width:72px;height:72px;}
+.badge{width:270px;border-radius:16px;overflow:hidden;background:#fff;border:1.5px solid var(--ink);position:relative;box-shadow:0 3px 0 var(--ink);}
+.badge-top{background:var(--green);color:var(--paper);padding:10px 14px;display:flex;align-items:center;gap:8px;}
+.badge-top .dot{width:8px;height:8px;border-radius:50%;background:var(--mustard);}
+.badge-top span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;}
+.badge-body{padding:14px;display:flex;gap:12px;align-items:center;}
+.badge-body .info h3{margin:0;font-size:15px;}
+.badge-body .info p{margin:2px 0 0;font-size:11.5px;color:var(--green-light);font-weight:600;}
+.badge-perforation{height:0;border-top:2px dashed var(--line);position:relative;margin:0 14px;}
+.badge-perforation::before, .badge-perforation::after{content:"";position:absolute;top:-8px;width:16px;height:16px;border-radius:50%;background:var(--paper);border:1.5px solid var(--ink);}
+.badge-perforation::before{left:-22px;} .badge-perforation::after{right:-22px;}
+.badge-stub{padding:12px 14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.badge-stub .qr-wrap{background:#fff;padding:4px;border-radius:8px;border:1.5px solid var(--line);}
+.badge-stub .code{font-size:10px;color:var(--green-light);font-weight:700;letter-spacing:.05em;}
+.limit-banner{background:var(--coral);color:#fff;padding:12px 16px;border-radius:var(--radius);font-weight:700;font-size:13px;margin-bottom:14px;}
+.out-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.out-chip{background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;}
+.scanner-area{border:2px dashed var(--line);border-radius:var(--radius);padding:22px;text-align:center;}
+video{width:100%;max-width:340px;border-radius:10px;border:1.5px solid var(--ink);}
+.hint{font-size:12px;color:var(--green-light);margin-top:6px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:50;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth-card{width:100%;max-width:360px;background:#fff;border:1.5px solid var(--ink);border-radius:var(--radius);padding:26px;box-shadow:0 3px 0 var(--ink);}
+.auth-toggle{display:flex;gap:6px;margin-bottom:16px;}
+.auth-toggle button{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--ink);background:transparent;font-weight:700;font-size:12px;cursor:pointer;}
+.auth-toggle button.active{background:var(--ink);color:var(--paper);}
+.auth-error{color:var(--coral);font-size:12px;font-weight:700;margin-top:8px;min-height:16px;}
+@media print{
+  body *{visibility:hidden;}
+  #print-area, #print-area *{visibility:visible;}
+  #print-area{position:absolute;top:0;left:0;width:100%;}
+  header, nav, .no-print{display:none !important;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const SUPABASE_URL = "https://fxtwakdkgaisfnaavgdu.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4dHdha2RrZ2Fpc2ZuYWF2Z2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTc1MTYsImV4cCI6MjEwMzQ5MzUxNn0.Yr1PZY46DliTRnkAx6tqrNohakXCqGwIPpDaSuoVRhk";
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let DATA = { years: [], groups: [], students: [], activePasses: [], history: [] };
+let SESSION = null;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+
+/* ---------------- DATA (Supabase) ---------------- */
+async function loadData(){
+  const { data, error } = await supabase.from('app_state').select('data').eq('id',1).single();
+  if(error){ toast('No se pudo cargar la información.'); return; }
+  if(data && data.data) DATA = data.data;
+}
+async function saveData(){
+  const { error } = await supabase.from('app_state').upsert({ id:1, data: DATA, updated_at: new Date().toISOString() });
+  if(error) toast('No se pudo guardar. Revisa tu conexión.');
+}
+
+/* ---------------- AUTH ---------------- */
+function renderAuth(mode){
+  document.getElementById('root').innerHTML = `
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <div class="brand" style="margin-bottom:16px;">
+          <div class="brand-mark">HP</div>
+          <div class="brand-text"><div class="eyebrow">Pase de Salón</div><h1>${mode==='signup'?'Crear cuenta de profesor':'Iniciar sesión'}</h1></div>
+        </div>
+        <div class="auth-toggle">
+          <button data-mode="login" class="${mode==='login'?'active':''}">Iniciar sesión</button>
+          <button data-mode="signup" class="${mode==='signup'?'active':''}">Crear cuenta</button>
+        </div>
+        ${mode==='signup' ? `<div class="field"><label>Nombre completo</label><input id="authName" placeholder="Nombre del profesor"></div>` : ''}
+        <div class="field"><label>Correo</label><input id="authEmail" type="email" placeholder="correo@escuela.mx"></div>
+        <div class="field"><label>Contraseña</label><input id="authPass" type="password" placeholder="••••••••"></div>
+        <button class="btn" id="authSubmit" style="width:100%;">${mode==='signup'?'Crear cuenta':'Entrar'}</button>
+        <div class="auth-error" id="authError"></div>
+      </div>
+    </div>
+  `;
+  document.querySelectorAll('.auth-toggle button').forEach(b=>{
+    b.onclick = ()=> renderAuth(b.dataset.mode);
+  });
+  document.getElementById('authSubmit').onclick = async ()=>{
+    const email = document.getElementById('authEmail').value.trim();
+    const pass = document.getElementById('authPass').value;
+    const errEl = document.getElementById('authError');
+    errEl.textContent = '';
+    if(!email || !pass) { errEl.textContent = 'Completa correo y contraseña.'; return; }
+    if(mode==='signup'){
+      const name = document.getElementById('authName').value.trim();
+      const { data, error } = await supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
+      if(error){ errEl.textContent = error.message; return; }
+      if(!data.session){ errEl.textContent = 'Cuenta creada. Revisa tu correo para confirmar, o desactiva "Confirm email" en Supabase para pruebas.'; return; }
+      SESSION = data.session; await boot();
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if(error){ errEl.textContent = 'Correo o contraseña incorrectos.'; return; }
+      SESSION = data.session; await boot();
+    }
+  };
+}
+
+/* ---------------- TABS ---------------- */
+const TABS = [
+  {id:'dashboard', label:'Panel'},
+  {id:'years', label:'Ciclos escolares'},
+  {id:'groups', label:'Grupos'},
+  {id:'students', label:'Alumnos'},
+  {id:'badges', label:'Gafetes'},
+  {id:'scanner', label:'Pase de baño'},
+  {id:'history', label:'Historial'},
+];
+let activeTab = 'dashboard';
+
+function teacherName(){
+  return (SESSION && SESSION.user && SESSION.user.user_metadata && SESSION.user.user_metadata.full_name) || (SESSION && SESSION.user && SESSION.user.email) || 'Profesor';
+}
+
+function renderApp(){
+  document.getElementById('root').innerHTML = `
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <div class="brand-mark">HP</div>
+          <div class="brand-text"><div class="eyebrow">Pase de Salón</div><h1>Panel escolar</h1></div>
+        </div>
+        <div class="who">
+          <span>👋 ${teacherName()}</span>
+          <button class="btn secondary small" id="logoutBtn">Cerrar sesión</button>
+        </div>
+      </header>
+      <nav class="tabs" id="tabs"></nav>
+      <div id="panels"></div>
+    </div>
+  `;
+  document.getElementById('logoutBtn').onclick = async ()=>{
+    stopCamera();
+    await supabase.auth.signOut();
+    SESSION = null;
+    renderAuth('login');
+  };
+  renderTabs(); renderPanels();
+}
+
+function renderTabs(){
+  const nav = document.getElementById('tabs');
+  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" class="${t.id===activeTab?'active':''}">${t.label}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{ if(activeTab!=='scanner') {} if(b.dataset.tab!=='scanner') stopCamera(); activeTab = b.dataset.tab; renderTabs(); renderPanels(); };
+  });
+}
+function renderPanels(){
+  const root = document.getElementById('panels');
+  root.innerHTML = `<div class="panel active" id="panel-${activeTab}"></div>`;
+  const p = document.getElementById('panel-'+activeTab);
+  ({ dashboard: renderDashboard, years: renderYears, groups: renderGroups, students: renderStudents, badges: renderBadges, scanner: renderScanner, history: renderHistory })[activeTab](p);
+}
+
+/* ---------------- HELPERS ---------------- */
+function yearLabel(id){ const y = DATA.years.find(y=>y.id===id); return y? y.label : '—'; }
+function groupLabel(id){ const g = DATA.groups.find(g=>g.id===id); return g? `${g.grade} "${g.name}"` : '—'; }
+function studentsInGroup(gid){ return DATA.students.filter(s=>s.groupId===gid); }
+function groupsInYear(yid){ return DATA.groups.filter(g=>g.yearId===yid); }
+function activeOutForGroup(gid){ return DATA.activePasses.filter(p=>p.groupId===gid); }
+function placeholderAvatar(name){
+  const initials = name.split(' ').slice(0,2).map(n=>n[0]||'').join('').toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72'><rect width='100%' height='100%' fill='%23efe7d3'/><text x='50%' y='54%' font-size='26' text-anchor='middle' fill='%231f4b3f' font-family='sans-serif' font-weight='bold'>${initials}</text></svg>`;
+  return 'data:image/svg+xml,'+encodeURIComponent(svg);
+}
+
+/* ---------------- DASHBOARD ---------------- */
+function renderDashboard(root){
+  const totalOut = DATA.activePasses.length;
+  root.innerHTML = `
+    <h2 class="section-title">Resumen</h2>
+    <div class="grid cols-3">
+      <div class="card"><div class="pill">Ciclos</div><h3 style="margin:8px 0 0;font-size:26px;">${DATA.years.length}</h3></div>
+      <div class="card"><div class="pill">Grupos</div><h3 style="margin:8px 0 0;font-size:26px;">${DATA.groups.length}</h3></div>
+      <div class="card"><div class="pill">Alumnos</div><h3 style="margin:8px 0 0;font-size:26px;">${DATA.students.length}</h3></div>
+    </div>
+    <div class="card">
+      <div class="pill" style="background:${totalOut? 'var(--coral)':'var(--paper-2)'};color:${totalOut?'#fff':'var(--green)'}">Fuera del salón ahora</div>
+      <h3 style="margin:8px 0 0;font-size:26px;">${totalOut}</h3>
+      ${totalOut ? `<div class="out-list">${DATA.activePasses.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip">${s? s.name : '—'} · ${groupLabel(p.groupId)}</div>`; }).join('')}</div>` : `<p class="hint">Nadie ha salido en este momento.</p>`}
+    </div>
+    ${!DATA.years.length ? `<div class="empty">Empieza dando de alta un ciclo escolar en la pestaña "Ciclos escolares".</div>` : ''}
+  `;
+}
+
+/* ---------------- YEARS ---------------- */
+function renderYears(root){
+  root.innerHTML = `
+    <h2 class="section-title">Ciclos escolares</h2>
+    <div class="card">
+      <div class="grid cols-2"><div class="field"><label>Nombre del ciclo (ej. 2026-2027)</label><input id="yLabel" placeholder="2026-2027"></div></div>
+      <button class="btn" id="addYear">Agregar ciclo</button>
+    </div>
+    ${DATA.years.length ? `<div class="card"><table>
+      <tr><th>Ciclo</th><th>Grupos</th><th></th></tr>
+      ${DATA.years.map(y=>`<tr><td><strong>${y.label}</strong></td><td>${groupsInYear(y.id).length}</td><td class="row-actions"><button class="btn secondary small" data-del-year="${y.id}">Eliminar</button></td></tr>`).join('')}
+    </table></div>` : `<div class="empty">Aún no hay ciclos escolares registrados.</div>`}
+  `;
+  root.querySelector('#addYear').onclick = async ()=>{
+    const val = root.querySelector('#yLabel').value.trim();
+    if(!val) return toast('Escribe un nombre de ciclo.');
+    DATA.years.push({id:uid(), label:val});
+    await saveData(); toast('Ciclo agregado.'); renderPanels();
+  };
+  root.querySelectorAll('[data-del-year]').forEach(b=>{
+    b.onclick = async ()=>{
+      const id = b.dataset.delYear;
+      if(!confirm('Esto también eliminará los grupos y alumnos de este ciclo. ¿Continuar?')) return;
+      const groupIds = groupsInYear(id).map(g=>g.id);
+      DATA.students = DATA.students.filter(s=>!groupIds.includes(s.groupId));
+      DATA.groups = DATA.groups.filter(g=>g.yearId!==id);
+      DATA.years = DATA.years.filter(y=>y.id!==id);
+      await saveData(); toast('Ciclo eliminado.'); renderPanels();
+    };
+  });
+}
+
+/* ---------------- GROUPS ---------------- */
+function renderGroups(root){
+  if(!DATA.years.length){ root.innerHTML = `<div class="empty">Primero da de alta un ciclo escolar.</div>`; return; }
+  root.innerHTML = `
+    <h2 class="section-title">Grupos</h2>
+    <div class="card">
+      <div class="grid cols-3">
+        <div class="field"><label>Ciclo escolar</label><select id="gYear">${DATA.years.map(y=>`<option value="${y.id}">${y.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Grado (ej. 3° Primaria)</label><input id="gGrade" placeholder="3° Primaria"></div>
+        <div class="field"><label>Grupo (ej. A)</label><input id="gName" placeholder="A"></div>
+      </div>
+      <button class="btn" id="addGroup">Agregar grupo</button>
+    </div>
+    ${DATA.groups.length ? `<div class="card"><table>
+      <tr><th>Grupo</th><th>Ciclo</th><th>Alumnos</th><th></th></tr>
+      ${DATA.groups.map(g=>`<tr><td><strong>${g.grade} "${g.name}"</strong></td><td>${yearLabel(g.yearId)}</td><td>${studentsInGroup(g.id).length}</td><td class="row-actions"><button class="btn secondary small" data-del-group="${g.id}">Eliminar</button></td></tr>`).join('')}
+    </table></div>` : `<div class="empty">Aún no hay grupos registrados.</div>`}
+  `;
+  root.querySelector('#addGroup').onclick = async ()=>{
+    const yearId = root.querySelector('#gYear').value;
+    const grade = root.querySelector('#gGrade').value.trim();
+    const name = root.querySelector('#gName').value.trim();
+    if(!grade || !name) return toast('Completa grado y grupo.');
+    DATA.groups.push({id:uid(), yearId, grade, name});
+    await saveData(); toast('Grupo agregado.'); renderPanels();
+  };
+  root.querySelectorAll('[data-del-group]').forEach(b=>{
+    b.onclick = async ()=>{
+      const id = b.dataset.delGroup;
+      if(!confirm('Esto también eliminará a los alumnos de este grupo. ¿Continuar?')) return;
+      DATA.students = DATA.students.filter(s=>s.groupId!==id);
+      DATA.groups = DATA.groups.filter(g=>g.id!==id);
+      DATA.activePasses = DATA.activePasses.filter(p=>p.groupId!==id);
+      await saveData(); toast('Grupo eliminado.'); renderPanels();
+    };
+  });
+}
+
+/* ---------------- STUDENTS ---------------- */
+function fileToThumb(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 120;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size/img.width, size/img.height);
+        const w = img.width*scale, h = img.height*scale;
+        ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function renderStudents(root){
+  if(!DATA.groups.length){ root.innerHTML = `<div class="empty">Primero da de alta un grupo.</div>`; return; }
+  root.innerHTML = `
+    <h2 class="section-title">Alumnos</h2>
+    <div class="card">
+      <div class="grid cols-3">
+        <div class="field"><label>Grupo</label><select id="sGroup">${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div>
+        <div class="field"><label>Nombre completo</label><input id="sName" placeholder="Nombre del alumno"></div>
+        <div class="field"><label>Matrícula (opcional)</label><input id="sFolio" placeholder="Ej. 2026-014"></div>
+        <div class="field"><label>Foto (opcional)</label><input id="sPhoto" type="file" accept="image/*"></div>
+      </div>
+      <button class="btn" id="addStudent">Agregar alumno</button>
+    </div>
+    <div class="field" style="max-width:280px;"><label>Filtrar por grupo</label><select id="filterGroup"><option value="">Todos los grupos</option>${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}"</option>`).join('')}</select></div>
+    <div id="studentTableWrap"></div>
+  `;
+  function drawTable(){
+    const filter = root.querySelector('#filterGroup').value;
+    const list = filter? DATA.students.filter(s=>s.groupId===filter) : DATA.students;
+    root.querySelector('#studentTableWrap').innerHTML = list.length ? `<div class="card"><table>
+      <tr><th></th><th>Nombre</th><th>Grupo</th><th>Matrícula</th><th></th></tr>
+      ${list.map(s=>`<tr><td><img class="avatar" src="${s.photo || placeholderAvatar(s.name)}"></td><td><strong>${s.name}</strong></td><td>${groupLabel(s.groupId)}</td><td>${s.folio||'—'}</td><td class="row-actions"><button class="btn secondary small" data-del-student="${s.id}">Eliminar</button></td></tr>`).join('')}
+    </table></div>` : `<div class="empty">No hay alumnos en este filtro.</div>`;
+    root.querySelectorAll('[data-del-student]').forEach(b=>{
+      b.onclick = async ()=>{
+        const id = b.dataset.delStudent;
+        DATA.students = DATA.students.filter(s=>s.id!==id);
+        DATA.activePasses = DATA.activePasses.filter(p=>p.studentId!==id);
+        await saveData(); toast('Alumno eliminado.'); drawTable();
+      };
+    });
+  }
+  drawTable();
+  root.querySelector('#filterGroup').onchange = drawTable;
+  root.querySelector('#addStudent').onclick = async ()=>{
+    const groupId = root.querySelector('#sGroup').value;
+    const name = root.querySelector('#sName').value.trim();
+    const folio = root.querySelector('#sFolio').value.trim();
+    const file = root.querySelector('#sPhoto').files[0];
+    if(!name) return toast('Escribe el nombre del alumno.');
+    let photo = null;
+    if(file){ try{ photo = await fileToThumb(file); }catch(e){} }
+    DATA.students.push({id:uid(), groupId, name, folio, photo, code: uid()});
+    await saveData(); toast('Alumno agregado.');
+    root.querySelector('#sName').value=''; root.querySelector('#sFolio').value=''; root.querySelector('#sPhoto').value='';
+    drawTable();
+  };
+}
+
+/* ---------------- BADGES ---------------- */
+function renderBadges(root){
+  if(!DATA.students.length){ root.innerHTML = `<div class="empty">Da de alta alumnos para generar sus gafetes.</div>`; return; }
+  root.innerHTML = `
+    <h2 class="section-title">Gafetes con código QR</h2>
+    <div class="card no-print">
+      <div class="field" style="max-width:320px;"><label>Grupo</label><select id="badgeGroup"><option value="">Todos los grupos</option>${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div>
+      <button class="btn" id="printBtn">Imprimir gafetes</button>
+    </div>
+    <div id="print-area"><div id="badgeGrid" style="display:flex;flex-wrap:wrap;gap:18px;"></div></div>
+  `;
+  function draw(){
+    const filter = root.querySelector('#badgeGroup').value;
+    const list = filter? DATA.students.filter(s=>s.groupId===filter) : DATA.students;
+    const grid = root.querySelector('#badgeGrid');
+    grid.innerHTML = list.map(s=>`
+      <div class="badge">
+        <div class="badge-top"><div class="dot"></div><span>Pase de salón · Gafete</span></div>
+        <div class="badge-body">
+          <img class="avatar lg" src="${s.photo || placeholderAvatar(s.name)}">
+          <div class="info"><h3>${s.name}</h3><p>${groupLabel(s.groupId)}</p><p>${s.folio ? 'Matrícula '+s.folio : yearLabel((DATA.groups.find(g=>g.id===s.groupId)||{}).yearId)}</p></div>
+        </div>
+        <div class="badge-perforation"></div>
+        <div class="badge-stub"><div class="qr-wrap" id="qr-${s.id}"></div><div class="code">CÓDIGO<br>${s.code.slice(0,8).toUpperCase()}</div></div>
+      </div>
+    `).join('');
+    list.forEach(s=>{
+      const el = document.getElementById('qr-'+s.id);
+      if(el) new QRCode(el, {text: s.code, width:64, height:64, colorDark:'#16241f', colorLight:'#ffffff'});
+    });
+  }
+  draw();
+  root.querySelector('#badgeGroup').onchange = draw;
+  root.querySelector('#printBtn').onclick = ()=>window.print();
+}
+
+/* ---------------- SCANNER ---------------- */
+let scannerStream = null, scannerLoopId = null;
+function renderScanner(root){
+  if(!DATA.groups.length){ root.innerHTML = `<div class="empty">Primero da de alta grupos y alumnos.</div>`; return; }
+  root.innerHTML = `
+    <h2 class="section-title">Pase de baño / dirección</h2>
+    <div class="card"><div class="field" style="max-width:320px;"><label>¿Qué grupo estás atendiendo?</label><select id="scanGroup">${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div></div>
+    <div id="limitArea"></div>
+    <div class="grid cols-2">
+      <div class="card"><h3 style="margin-top:0;font-size:14px;">Escanear con cámara</h3>
+        <div class="scanner-area"><video id="video" playsinline muted style="display:none;"></video>
+          <div id="camIdle"><button class="btn" id="startCam">Activar cámara</button><p class="hint">Necesita permiso de cámara del navegador.</p></div>
+        </div>
+      </div>
+      <div class="card"><h3 style="margin-top:0;font-size:14px;">Registrar manualmente</h3>
+        <div class="field"><label>Buscar alumno</label><input id="manualSearch" placeholder="Escribe un nombre..."></div>
+        <div id="manualResults" style="max-height:180px;overflow:auto;"></div>
+      </div>
+    </div>
+  `;
+  const groupSelect = root.querySelector('#scanGroup');
+  function drawLimit(){
+    const gid = groupSelect.value;
+    const out = activeOutForGroup(gid);
+    const area = root.querySelector('#limitArea');
+    if(out.length >= 2){
+      area.innerHTML = `<div class="limit-banner">⚠ Límite alcanzado: ya hay 2 alumnos fuera de este grupo.
+        <div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip" style="background:var(--coral);color:#fff;border-color:#fff;">${s?s.name:'—'}</div>`; }).join('')}</div></div>`;
+    } else {
+      area.innerHTML = out.length ? `<div class="card"><div class="pill">Actualmente fuera (${out.length}/2)</div><div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip">${s?s.name:'—'}</div>`; }).join('')}</div></div>` : '';
+    }
+  }
+  drawLimit();
+  groupSelect.onchange = drawLimit;
+  async function handleScan(code){
+    const gid = groupSelect.value;
+    const student = DATA.students.find(s=>s.code===code);
+    if(!student) return toast('Código no reconocido.');
+    const activeForStudent = DATA.activePasses.find(p=>p.studentId===student.id);
+    if(activeForStudent){
+      DATA.activePasses = DATA.activePasses.filter(p=>p.studentId!==student.id);
+      DATA.history.unshift({id:uid(), studentId:student.id, groupId:gid, out:activeForStudent.time, in:Date.now(), by: teacherName()});
+      await saveData(); toast(`${student.name} regresó al salón.`); drawLimit();
+      return;
+    }
+    if(student.groupId !== gid){ if(!confirm(`${student.name} pertenece a otro grupo. ¿Registrar salida de todos modos?`)) return; }
+    const out = activeOutForGroup(gid);
+    if(out.length >= 2){ toast('Límite alcanzado: ya hay 2 alumnos fuera.'); return; }
+    DATA.activePasses.push({studentId:student.id, groupId:gid, time:Date.now(), by: teacherName()});
+    await saveData(); toast(`${student.name} salió del salón.`); drawLimit();
+  }
+  const searchInput = root.querySelector('#manualSearch');
+  function drawResults(){
+    const q = searchInput.value.trim().toLowerCase();
+    const results = q ? DATA.students.filter(s=>s.name.toLowerCase().includes(q)) : studentsInGroup(groupSelect.value);
+    root.querySelector('#manualResults').innerHTML = results.slice(0,8).map(s=>{
+      const isOut = DATA.activePasses.some(p=>p.studentId===s.id);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);"><span style="font-size:13px;">${s.name} <span class="hint">(${groupLabel(s.groupId)})</span></span><button class="btn small ${isOut?'secondary':''}" data-code="${s.code}">${isOut? 'Registrar regreso':'Dar pase'}</button></div>`;
+    }).join('') || `<p class="hint">Sin resultados.</p>`;
+    root.querySelectorAll('[data-code]').forEach(b=>{ b.onclick = ()=>handleScan(b.dataset.code); });
+  }
+  drawResults();
+  searchInput.oninput = drawResults;
+  root.querySelector('#startCam').onclick = async ()=>{
+    const video = root.querySelector('#video');
+    try{
+      scannerStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      video.srcObject = scannerStream; video.style.display = 'block';
+      root.querySelector('#camIdle').style.display = 'none';
+      video.play();
+      const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+      let lastCode = null, lastTime = 0;
+      function loop(){
+        if(video.readyState === video.HAVE_ENOUGH_DATA){
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+          const result = jsQR(img.data, img.width, img.height);
+          if(result && result.data){
+            const now = Date.now();
+            if(result.data !== lastCode || now-lastTime > 3000){ lastCode = result.data; lastTime = now; handleScan(result.data); }
+          }
+        }
+        scannerLoopId = requestAnimationFrame(loop);
+      }
+      loop();
+    }catch(e){ toast('No se pudo activar la cámara. Usa el registro manual.'); }
+  };
+}
+function stopCamera(){
+  if(scannerLoopId) cancelAnimationFrame(scannerLoopId);
+  if(scannerStream) scannerStream.getTracks().forEach(t=>t.stop());
+  scannerStream = null; scannerLoopId = null;
+}
+
+/* ---------------- HISTORY ---------------- */
+function renderHistory(root){
+  if(!DATA.history.length){ root.innerHTML = `<div class="empty">Aún no hay pases registrados.</div>`; return; }
+  const rows = [...DATA.history].sort((a,b)=>b.in-a.in);
+  root.innerHTML = `
+    <h2 class="section-title">Historial de pases</h2>
+    <div class="card"><table>
+      <tr><th>Alumno</th><th>Grupo</th><th>Salió</th><th>Regresó</th><th>Duración</th><th>Registró</th></tr>
+      ${rows.map(h=>{
+        const s = DATA.students.find(s=>s.id===h.studentId);
+        const mins = Math.max(1, Math.round((h.in - h.out)/60000));
+        return `<tr><td><strong>${s? s.name : '—'}</strong></td><td>${groupLabel(h.groupId)}</td><td>${new Date(h.out).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</td><td>${new Date(h.in).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</td><td>${mins} min</td><td>${h.by||'—'}</td></tr>`;
+      }).join('')}
+    </table></div>
+  `;
+}
+
+/* ---------------- BOOT ---------------- */
+async function boot(){
+  await loadData();
+  renderApp();
+}
+(async function init(){
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session){ SESSION = session; await boot(); }
+  else { renderAuth('login'); }
+  supabase.auth.onAuthStateChange((event, session)=>{
+    if(event === 'SIGNED_OUT'){ SESSION = null; }
+  });
+})();
+</script>
+</body>
+</html>

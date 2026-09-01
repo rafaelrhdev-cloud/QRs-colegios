@@ -344,23 +344,61 @@ function fileToThumb(file){
 }
 function renderStudents(root){
   if(!DATA.groups.length){ root.innerHTML = `<div class="empty">Primero da de alta un grupo.</div>`; return; }
+  const sortedYears = [...DATA.years].sort((a,b)=>b.label.localeCompare(a.label));
   root.innerHTML = `
     <h2 class="section-title">Alumnos</h2>
     <div class="card">
       <div class="grid cols-3">
-        <div class="field"><label>Grupo</label><select id="sGroup">${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div>
+        <div class="field"><label>Ciclo escolar</label><select id="sYear">${sortedYears.map(y=>`<option value="${y.id}">${y.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Grupo</label><select id="sGroup"></select></div>
         <div class="field"><label>Nombre completo</label><input id="sName" placeholder="Nombre del alumno"></div>
         <div class="field"><label>Matrícula (opcional)</label><input id="sFolio" placeholder="Ej. 2026-014"></div>
         <div class="field"><label>Foto (opcional)</label><input id="sPhoto" type="file" accept="image/*"></div>
       </div>
       <button class="btn" id="addStudent">Agregar alumno</button>
     </div>
-    <div class="field" style="max-width:280px;"><label>Filtrar por grupo</label><select id="filterGroup"><option value="">Todos los grupos</option>${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}"</option>`).join('')}</select></div>
+    <div class="card">
+      <div class="grid cols-2">
+        <div class="field"><label>Filtrar por ciclo</label><select id="filterYear"><option value="">Todos los ciclos</option>${sortedYears.map(y=>`<option value="${y.id}">${y.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Filtrar por grupo</label><select id="filterGroup"><option value="">Todos los grupos</option></select></div>
+      </div>
+    </div>
     <div id="studentTableWrap"></div>
   `;
+
+  const sYear = root.querySelector('#sYear');
+  const sGroup = root.querySelector('#sGroup');
+  const filterYear = root.querySelector('#filterYear');
+  const filterGroup = root.querySelector('#filterGroup');
+
+  function fillGroupOptions(selectEl, yearId, includeAllOption){
+    const groups = DATA.groups.filter(g=>g.yearId===yearId);
+    const allOption = includeAllOption ? `<option value="">Todos los grupos</option>` : '';
+    selectEl.innerHTML = allOption + (groups.length
+      ? groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}"</option>`).join('')
+      : `<option value="" disabled>Este ciclo no tiene grupos todavía</option>`);
+  }
+
+  // formulario de alta: cascada ciclo -> grupo
+  fillGroupOptions(sGroup, sYear.value, false);
+  sYear.onchange = ()=> fillGroupOptions(sGroup, sYear.value, false);
+
+  // filtro de tabla: cascada ciclo -> grupo, con opción "todos"
+  function refreshFilterGroups(){
+    fillGroupOptions(filterGroup, filterYear.value, true);
+  }
+  refreshFilterGroups();
+
   function drawTable(){
-    const filter = root.querySelector('#filterGroup').value;
-    const list = filter? DATA.students.filter(s=>s.groupId===filter) : DATA.students;
+    const yearId = filterYear.value;
+    const groupId = filterGroup.value;
+    let list = DATA.students;
+    if(groupId){
+      list = list.filter(s=>s.groupId===groupId);
+    } else if(yearId){
+      const groupIdsInYear = DATA.groups.filter(g=>g.yearId===yearId).map(g=>g.id);
+      list = list.filter(s=>groupIdsInYear.includes(s.groupId));
+    }
     root.querySelector('#studentTableWrap').innerHTML = list.length ? `<div class="card"><table>
       <tr><th></th><th>Nombre</th><th>Grupo</th><th>Matrícula</th><th></th></tr>
       ${list.map(s=>`<tr><td><img class="avatar" src="${s.photo || placeholderAvatar(s.name)}"></td><td><strong>${s.name}</strong></td><td>${groupLabel(s.groupId)}</td><td>${s.folio||'—'}</td><td class="row-actions"><button class="btn secondary small" data-del-student="${s.id}">Eliminar</button></td></tr>`).join('')}
@@ -375,12 +413,15 @@ function renderStudents(root){
     });
   }
   drawTable();
-  root.querySelector('#filterGroup').onchange = drawTable;
+  filterYear.onchange = ()=>{ refreshFilterGroups(); drawTable(); };
+  filterGroup.onchange = drawTable;
+
   root.querySelector('#addStudent').onclick = async ()=>{
-    const groupId = root.querySelector('#sGroup').value;
+    const groupId = sGroup.value;
     const name = root.querySelector('#sName').value.trim();
     const folio = root.querySelector('#sFolio').value.trim();
     const file = root.querySelector('#sPhoto').files[0];
+    if(!groupId) return toast('Este ciclo no tiene grupos. Da de alta uno primero.');
     if(!name) return toast('Escribe el nombre del alumno.');
     let photo = null;
     if(file){ try{ photo = await fileToThumb(file); }catch(e){} }
@@ -441,11 +482,12 @@ function renderBadges(root){
 
 /* ---------------- SCANNER ---------------- */
 let scannerStream = null, scannerLoopId = null;
-function renderScanner(root){
+function renderScanner(root, presetGroupId){
   if(!DATA.groups.length){ root.innerHTML = `<div class="empty">Primero da de alta grupos y alumnos.</div>`; return; }
+  const chosenGroupId = presetGroupId || DATA.groups[0].id;
   root.innerHTML = `
     <h2 class="section-title">Pase de baño / dirección</h2>
-    <div class="card"><div class="field" style="max-width:320px;"><label>¿Qué grupo estás atendiendo?</label><select id="scanGroup">${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div></div>
+    <div class="card"><div class="field" style="max-width:320px;"><label>¿Qué grupo estás atendiendo?</label><select id="scanGroup">${DATA.groups.map(g=>`<option value="${g.id}" ${g.id===chosenGroupId?'selected':''}>${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div></div>
     <div id="limitArea"></div>
     <div class="grid cols-2">
       <div class="card"><h3 style="margin-top:0;font-size:14px;">Escanear con cámara</h3>
@@ -498,8 +540,7 @@ async function handleScan(rawCode){
       DATA.history.unshift({id:uid(), studentId:student.id, groupId:gid, out:activeForStudent.time, in:Date.now(), by: teacherName()});
       await saveData(); 
       toast(`${student.name} regresó al salón.`); 
-      drawLimit();
-      if(typeof drawResults === 'function') drawResults();
+      renderScanner(root, gid);
       return;
     }
 
@@ -518,8 +559,7 @@ async function handleScan(rawCode){
     DATA.activePasses.push({studentId:student.id, groupId:gid, time:Date.now(), by: teacherName()});
     await saveData(); 
     toast(`${student.name} salió del salón.`); 
-    drawLimit();
-    if(typeof drawResults === 'function') drawResults();
+    renderScanner(root, gid);
   }
 
   const searchInput = root.querySelector('#manualSearch');
@@ -669,15 +709,10 @@ async function boot(){
           }
         }
 
-        // Forzamos la recarga total del panel del escáner para que pinte los chips de "fuera"
-        renderPanels();
-        
-        // Sincronizamos el selector si existe en el DOM actual
-        const groupSelect = document.getElementById('scanGroup');
-        if(groupSelect && gid) {
-          groupSelect.value = gid;
-          if(typeof groupSelect.onchange === 'function') groupSelect.onchange();
-        }
+        // Redibujamos todo el panel del escáner conservando el grupo, para que
+        // el conteo de "quiénes están afuera" quede siempre consistente.
+        const scannerPanel = document.getElementById('panel-scanner');
+        if(scannerPanel) renderScanner(scannerPanel, gid);
 
       } else {
         toast('Código QR no encontrado en el sistema.');

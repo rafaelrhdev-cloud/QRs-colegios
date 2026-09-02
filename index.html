@@ -177,6 +177,13 @@ let activeTab = 'dashboard';
 function teacherName(){
   return (SESSION && SESSION.user && SESSION.user.user_metadata && SESSION.user.user_metadata.full_name) || (SESSION && SESSION.user && SESSION.user.email) || 'Profesor';
 }
+function teacherMaxOut(){
+  // Límite fijo para todos los profesores: no es configurable.
+  return 2;
+}
+function activeOutForTeacher(teacherId){
+  return DATA.activePasses.filter(p=>p.teacherId === teacherId);
+}
 
 function renderApp(){
   document.getElementById('root').innerHTML = `
@@ -184,10 +191,10 @@ function renderApp(){
       <header class="top">
         <div class="brand">
           <div class="brand-mark">HP</div>
-          <div class="brand-text"><div class="eyebrow">Pase de Salón</div><h1>Panel escolarrr</h1></div>
+          <div class="brand-text"><div class="eyebrow">Pase de Salón</div><h1>Panel escolar</h1></div>
         </div>
         <div class="who">
-          <span>👋 ${teacherName()}</span>
+          <span>👋 ${teacherName()} · <span class="hint" style="margin:0;">límite: ${teacherMaxOut()} alumnos</span></span>
           <button class="btn secondary small" id="logoutBtn">Cerrar sesión</button>
         </div>
       </header>
@@ -197,6 +204,7 @@ function renderApp(){
   `;
   document.getElementById('logoutBtn').onclick = async ()=>{
     stopCamera();
+    unsubscribeRealtime();
     await supabase.auth.signOut();
     SESSION = null;
     renderAuth('login');
@@ -435,48 +443,101 @@ function renderStudents(root){
 /* ---------------- BADGES ---------------- */
 function renderBadges(root){
   if(!DATA.students.length){ root.innerHTML = `<div class="empty">Da de alta alumnos para generar sus gafetes.</div>`; return; }
+  const sortedYears = [...DATA.years].sort((a,b)=>b.label.localeCompare(a.label));
   root.innerHTML = `
     <h2 class="section-title">Gafetes con código QR</h2>
     <div class="card no-print">
-      <div class="field" style="max-width:320px;"><label>Grupo</label><select id="badgeGroup"><option value="">Todos los grupos</option>${DATA.groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}" · ${yearLabel(g.yearId)}</option>`).join('')}</select></div>
-      <button class="btn" id="printBtn">Imprimir gafetes</button>
+      <div class="grid cols-3">
+        <div class="field"><label>Ciclo escolar</label><select id="badgeYear"><option value="">Todos los ciclos</option>${sortedYears.map(y=>`<option value="${y.id}">${y.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Grupo</label><select id="badgeGroup"><option value="">Todos los grupos</option></select></div>
+      </div>
+      <button class="btn" id="printBtn">Imprimir gafetes de esta vista</button>
     </div>
     <div id="print-area"><div id="badgeGrid" style="display:flex;flex-wrap:wrap;gap:18px;"></div></div>
   `;
+  const badgeYear = root.querySelector('#badgeYear');
+  const badgeGroup = root.querySelector('#badgeGroup');
+
+  function fillGroupOptions(){
+    const yid = badgeYear.value;
+    const groups = yid ? DATA.groups.filter(g=>g.yearId===yid) : DATA.groups;
+    badgeGroup.innerHTML = `<option value="">Todos los grupos</option>` + groups.map(g=>`<option value="${g.id}">${g.grade} "${g.name}"</option>`).join('');
+  }
+  fillGroupOptions();
+
   function draw(){
-    const filter = root.querySelector('#badgeGroup').value;
-    const list = filter? DATA.students.filter(s=>s.groupId===filter) : DATA.students;
+    const yid = badgeYear.value;
+    const gid = badgeGroup.value;
+    let list = DATA.students;
+    if(gid){
+      list = list.filter(s=>s.groupId===gid);
+    } else if(yid){
+      const groupIdsInYear = DATA.groups.filter(g=>g.yearId===yid).map(g=>g.id);
+      list = list.filter(s=>groupIdsInYear.includes(s.groupId));
+    }
     const grid = root.querySelector('#badgeGrid');
-    grid.innerHTML = list.map(s=>`
-      <div class="badge">
-        <div class="badge-top"><div class="dot"></div><span>Pase de salón · Gafete</span></div>
-        <div class="badge-body">
-          <img class="avatar lg" src="${s.photo || placeholderAvatar(s.name)}">
-          <div class="info"><h3>${s.name}</h3><p>${groupLabel(s.groupId)}</p><p>${s.folio ? 'Matrícula '+s.folio : yearLabel((DATA.groups.find(g=>g.id===s.groupId)||{}).yearId)}</p></div>
+    grid.innerHTML = list.length ? list.map(s=>`
+      <div class="badge-wrap" data-student-id="${s.id}">
+        <div class="badge">
+          <div class="badge-top"><div class="dot"></div><span>Pase de salón · Gafete</span></div>
+          <div class="badge-body">
+            <img class="avatar lg" src="${s.photo || placeholderAvatar(s.name)}">
+            <div class="info"><h3>${s.name}</h3><p>${groupLabel(s.groupId)}</p><p>${s.folio ? 'Matrícula '+s.folio : yearLabel((DATA.groups.find(g=>g.id===s.groupId)||{}).yearId)}</p></div>
+          </div>
+          <div class="badge-perforation"></div>
+          <div class="badge-stub"><div class="qr-wrap" id="qr-${s.id}"></div><div class="code">CÓDIGO<br>${s.code}</div></div>
         </div>
-        <div class="badge-perforation"></div>
-        <div class="badge-stub"><div class="qr-wrap" id="qr-${s.id}"></div><div class="code">CÓDIGO<br>${s.code}</div></div>
+        <button class="btn small secondary no-print" style="margin-top:8px;width:270px;" data-print-single="${s.id}">Imprimir este gafete</button>
       </div>
-    `).join('');
-   list.forEach(s=>{
-  const el = document.getElementById('qr-'+s.id);
-  if(el) {
-    el.innerHTML = "";
-   // Convertimos el código en un enlace interno de tu propia web
-    const qrUrl = window.location.href.split('?')[0] + "?pass=" + s.code;
-    new QRCode(el, {
-      text: qrUrl,
-      width: 130,
-      height: 130,
-      colorDark: '#16241f',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
+    `).join('') : '';
+    const existingEmpty = root.querySelector('.no-print-empty');
+    if(existingEmpty) existingEmpty.remove();
+    if(!list.length){
+      grid.insertAdjacentHTML('beforebegin', `<div class="empty no-print-empty">No hay alumnos en este filtro.</div>`);
+      return;
+    }
+    list.forEach(s=>{
+      const el = document.getElementById('qr-'+s.id);
+      if(el) {
+        el.innerHTML = "";
+        const qrUrl = window.location.href.split('?')[0] + "?pass=" + s.code;
+        new QRCode(el, {
+          text: qrUrl,
+          width: 130,
+          height: 130,
+          colorDark: '#16241f',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    });
+    root.querySelectorAll('[data-print-single]').forEach(b=>{
+      b.onclick = ()=>printSingle(b.dataset.printSingle);
     });
   }
-});
+
+  function printSingle(id){
+    const wraps = root.querySelectorAll('.badge-wrap');
+    const prevDisplay = [];
+    wraps.forEach(w=>{
+      prevDisplay.push([w, w.style.display]);
+      w.style.display = (w.dataset.studentId === id) ? '' : 'none';
+    });
+    let restored = false;
+    const restore = ()=>{
+      if(restored) return;
+      restored = true;
+      prevDisplay.forEach(([w,d])=> w.style.display = d);
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    window.print();
+    setTimeout(restore, 3000);
   }
+
   draw();
-  root.querySelector('#badgeGroup').onchange = draw;
+  badgeYear.onchange = ()=>{ fillGroupOptions(); draw(); };
+  badgeGroup.onchange = draw;
   root.querySelector('#printBtn').onclick = ()=>window.print();
 }
 
@@ -503,18 +564,18 @@ function renderScanner(root, presetGroupId){
   `;
   const groupSelect = root.querySelector('#scanGroup');
   function drawLimit(){
-    const gid = groupSelect.value;
-    const out = activeOutForGroup(gid);
+    const out = activeOutForTeacher(SESSION.user.id);
+    const max = teacherMaxOut();
     const area = root.querySelector('#limitArea');
-    if(out.length >= 2){
-      area.innerHTML = `<div class="limit-banner">⚠ Límite alcanzado: ya hay 2 alumnos fuera de este grupo.
-        <div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip" style="background:var(--coral);color:#fff;border-color:#fff;">${s?s.name:'—'}</div>`; }).join('')}</div></div>`;
+    if(out.length >= max){
+      area.innerHTML = `<div class="limit-banner">⚠ Límite alcanzado: ya tienes ${max} alumno${max===1?'':'s'} fuera contigo.
+        <div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip" style="background:var(--coral);color:#fff;border-color:#fff;">${s?s.name:'—'} · ${groupLabel(p.groupId)}</div>`; }).join('')}</div></div>`;
     } else {
-      area.innerHTML = out.length ? `<div class="card"><div class="pill">Actualmente fuera (${out.length}/2)</div><div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip">${s?s.name:'—'}</div>`; }).join('')}</div></div>` : '';
+      area.innerHTML = out.length ? `<div class="card"><div class="pill">Contigo, fuera ahora (${out.length}/${max})</div><div class="out-list">${out.map(p=>{ const s = DATA.students.find(s=>s.id===p.studentId); return `<div class="out-chip">${s?s.name:'—'} · ${groupLabel(p.groupId)}</div>`; }).join('')}</div></div>` : '';
     }
   }
   drawLimit();
-  groupSelect.onchange = drawLimit;
+  groupSelect.onchange = ()=>{ drawLimit(); drawResults(); };
 async function handleScan(rawCode){
     if(!rawCode) return;
     let cleanCode = rawCode.trim();
@@ -550,13 +611,14 @@ async function handleScan(rawCode){
       }
     }
 
-    const out = activeOutForGroup(gid);
-    if(out.length >= 2){ 
-      toast('Límite alcanzado: ya hay 2 alumnos fuera.'); 
+    const out = activeOutForTeacher(SESSION.user.id);
+    const max = teacherMaxOut();
+    if(out.length >= max){ 
+      toast(`Límite alcanzado: ya tienes ${max} alumno${max===1?'':'s'} fuera.`); 
       return; 
     }
 
-    DATA.activePasses.push({studentId:student.id, groupId:gid, time:Date.now(), by: teacherName()});
+    DATA.activePasses.push({studentId:student.id, groupId:gid, teacherId:SESSION.user.id, time:Date.now(), by: teacherName()});
     await saveData(); 
     toast(`${student.name} salió del salón.`); 
     renderScanner(root, gid);
@@ -652,10 +714,32 @@ function renderHistory(root){
   `;
 }
 
+/* ---------------- TIEMPO REAL ---------------- */
+let realtimeChannel = null;
+function subscribeRealtime(){
+  if(realtimeChannel) return;
+  realtimeChannel = supabase
+    .channel('app_state-changes')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state', filter: 'id=eq.1' }, (payload) => {
+      if(payload.new && payload.new.data){
+        DATA = payload.new.data;
+        // Si hay una cámara activa en este dispositivo, no la interrumpimos;
+        // el conteo se refrescará solo en cuanto termine ese escaneo.
+        if(scannerStream) return;
+        renderPanels();
+      }
+    })
+    .subscribe();
+}
+function unsubscribeRealtime(){
+  if(realtimeChannel){ supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+}
+
 /* ---------------- BOOT ---------------- */
 async function boot(){
   await loadData();
   renderApp();
+  subscribeRealtime();
 
   // Detectar si se abrió escaneando un QR con ?pass=
 // Detectar si se abrió escaneando un QR con ?pass=
@@ -693,13 +777,15 @@ async function boot(){
           toast(`${student.name} regresó al salón.`);
         } else {
           // Estaba dentro -> SALE DEL SALÓN
-          const outList = DATA.activePasses.filter(p => p.groupId === gid);
-          if(outList.length >= 2) {
-            toast('Límite alcanzado: ya hay 2 alumnos fuera de este grupo.');
+          const outForTeacher = activeOutForTeacher(SESSION.user.id);
+          const max = teacherMaxOut();
+          if(outForTeacher.length >= max) {
+            toast(`Límite alcanzado: ya tienes ${max} alumno${max===1?'':'s'} fuera.`);
           } else {
             DATA.activePasses.push({
               studentId: student.id, 
               groupId: gid, 
+              teacherId: SESSION.user.id,
               time: Date.now(), 
               by: teacherName()
             });
